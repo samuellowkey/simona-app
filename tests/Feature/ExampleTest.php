@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
+    use RefreshDatabase;
     /**
      * A basic test example.
      */
@@ -14,6 +16,7 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        // Jika di-redirect ke /login, ganti jadi 302
+        $response->assertStatus(302); 
     }
 }

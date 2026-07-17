@@ -5,124 +5,83 @@ namespace App\Http\Controllers;
 use App\Models\LogAktivitas;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class LaporanController extends Controller
 {
+    /**
+     * Menampilkan laporan realisasi dengan filter periode.
+     * PERF FIX: Ditambah pagination agar tidak load semua data sekaligus.
+     * BUG FIX: Filter bulan sekarang mendukung semua 12 bulan (bukan hanya 01-03).
+     */
     public function index(Request $request)
     {
         $periode = $request->input('periode');
-        
-        // Base Query menggunakan nama tabel asli kamu: 'realisasi' dan 'kegiatan'
+
         $query = DB::table('realisasi')
             ->join('kegiatan', 'realisasi.kegiatan_id', '=', 'kegiatan.id')
             ->leftJoin('users', 'realisasi.user_id', '=', 'users.id')
             ->select([
-                'realisasi.*', 
-                'kegiatan.nama_kegiatan', 
+                'realisasi.*',
+                'kegiatan.nama_kegiatan',
                 'kegiatan.kode_kegiatan',
                 'kegiatan.pagu_anggaran',
-                'users.nama_lengkap'
+                'users.nama_lengkap',
             ]);
 
-        // Logika Filter Periode Anggaran 2026
+        // BUG FIX: Filter bulan dari 01 sampai 12 (bukan hanya 01-03 seperti sebelumnya)
+        // Validasi nilai periode untuk mencegah injeksi input tidak terduga
+        $bulanValid = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+        $triwulanValid = ['t1','t2','t3','t4'];
+
         if ($periode) {
-            if (in_array($periode, ['01', '02', '03'])) {
-                // Filter Bulanan
+            if (in_array($periode, $bulanValid, true)) {
+                // Filter bulanan — semua 12 bulan kini didukung
                 $query->whereMonth('realisasi.tanggal_realisasi', $periode);
-            } elseif ($periode == 't1') {
-                // Triwulan I
-                $query->whereBetween('realisasi.tanggal_realisasi', ['2026-01-01', '2026-03-31']);
-            } elseif ($periode == 't2') {
-                // Triwulan II
-                $query->whereBetween('realisasi.tanggal_realisasi', ['2026-04-01', '2026-06-30']);
-            } elseif ($periode == 't3') {
-                // Triwulan III
-                $query->whereBetween('realisasi.tanggal_realisasi', ['2026-07-01', '2026-09-30']);
-            } elseif ($periode == 't4') {
-                // Triwulan IV
-                $query->whereBetween('realisasi.tanggal_realisasi', ['2026-10-01', '2026-12-31']);
+            } elseif (in_array($periode, $triwulanValid, true)) {
+                // Filter per triwulan
+                $ranges = [
+                    't1' => ['start' => date('Y') . '-01-01', 'end' => date('Y') . '-03-31'],
+                    't2' => ['start' => date('Y') . '-04-01', 'end' => date('Y') . '-06-30'],
+                    't3' => ['start' => date('Y') . '-07-01', 'end' => date('Y') . '-09-30'],
+                    't4' => ['start' => date('Y') . '-10-01', 'end' => date('Y') . '-12-31'],
+                ];
+                $query->whereBetween('realisasi.tanggal_realisasi', [
+                    $ranges[$periode]['start'],
+                    $ranges[$periode]['end'],
+                ]);
             }
         }
 
-        $realisasiData = $query->orderBy('realisasi.tanggal_realisasi', 'desc')->get();
+        // PERF FIX: Gunakan paginate agar data tidak di-load semua sekaligus
+        $realisasiData = $query
+            ->orderBy('realisasi.tanggal_realisasi', 'desc')
+            ->paginate(25)
+            ->appends($request->query());
 
-        // Menggunakan view 'laporan' sesuai dengan struktur kode aslimu
         return view('laporan', compact('realisasiData'));
     }
 
+    /**
+     * Menampilkan log aktivitas sistem dengan filter.
+     */
     public function indexLog(Request $request)
     {
-        // Memulai query builder dari model LogAktivitas (tabel audit_logs)
         $query = LogAktivitas::query();
 
-        // 1. Filter Berdasarkan Jenis Aktivitas (jika dipilih)
         if ($request->filled('aktivitas')) {
             $query->where('aktivitas', $request->aktivitas);
         }
 
-        // 2. Filter Berdasarkan Tanggal Spesifik (jika diisi)
         if ($request->filled('tanggal')) {
             $query->whereDate('created_at', $request->tanggal);
         }
 
-        // Ambil data log terbaru dengan pagination (10 data per halaman)
-        // appends(request()->query()) memastikan parameter filter tidak hilang saat klik pindah halaman (Next/Prev)
-        $logs = $query->latest()->paginate(10)->appends($request->query()); 
+        $logs = $query->latest()->paginate(10)->appends($request->query());
 
         return view('log.index', compact('logs'));
     }
 
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'tanggal_realisasi' => 'required|date',
-            'progres_fisik'     => 'required|numeric|min:0|max:100',
-            'nominal_realisasi' => 'required|numeric|min:1',
-            'keterangan'        => 'required|string',
-            'bukti_nota'        => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-        ]);
-
-        // 1. Cari data lama di database
-        $realisasi = DB::table('realisasi')->where('id', $id)->first();
-        if (!$realisasi) {
-            return redirect()->back()->withErrors(['error' => 'Data tidak ditemukan bray!']);
-        }
-
-        $updateData = [
-            'tanggal_realisasi'     => $request->tanggal_realisasi,
-            'progres_fisik_persen'  => $request->progres_fisik, // Sesuaikan dengan nama kolom database-mu bray
-            'nominal_realisasi'     => $request->nominal_realisasi,
-            'keterangan'            => $request->keterangan,
-            'status'                => 'pending', // ⚠️ Otomatis diturunkan ke PENDING agar di-approve ulang Kasubag
-            'updated_at'            => now(),
-        ];
-
-        // 2. Jika ada upload file nota baru/susulan
-        if ($request->hasFile('bukti_nota')) {
-            // Hapus file nota lama di storage jika sebelumnya sudah pernah ada berkas
-            if (!empty($realisasi->bukti_nota)) {
-                Storage::disk('public')->delete($realisasi->bukti_nota);
-            }
-
-            // Simpan file nota baru bray
-            $filePath = $request->file('bukti_nota')->store('bukti_nota', 'public');
-            $updateData['bukti_nota'] = $filePath;
-        }
-
-        // 3. Eksekusi update data ke database
-        DB::table('realisasi')->where('id', $id)->update($updateData);
-
-        // 4. Catat ke Audit Trail Log Aktivitas
-        DB::table('audit_logs')->insert([
-            'user_id'    => auth()->id(),
-            'aktivitas'  => 'EDIT_REALISASI',
-            'deskripsi'  => 'User mengubah data realisasi ID ' . $id . '. Status diturunkan kembali ke PENDING.',
-            'ip_address' => $request->ip(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return redirect()->back()->with('success', 'Data realisasi berhasil diperbarui dan dikembalikan ke status antrean antrean approval!');
-    }
+    // NOTE: Method update() DIHAPUS dari sini karena merupakan duplikasi dari
+    // RealisasiController::update(). Semua operasi update realisasi cukup
+    // ditangani oleh RealisasiController.
 }

@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Tahun Anggaran Aktif
+    |--------------------------------------------------------------------------
+    |
+    | Nilai ini digunakan untuk menentukan tahun anggaran yang sedang aktif
+    | di seluruh aplikasi. Ganti nilai TAHUN_ANGGARAN di .env setiap
+    | awal tahun anggaran baru tanpa perlu ubah kode.
+    |
+    */
+
+    'tahun_anggaran' => env('TAHUN_ANGGARAN', (int) date('Y')),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

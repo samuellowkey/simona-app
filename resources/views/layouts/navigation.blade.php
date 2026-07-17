@@ -16,11 +16,13 @@
                         {{ __('Dashboard') }}
                     </x-nav-link>
                 </div>
+                @hasanyrole('Admin|Operator')
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('realisasi.create')" :active="request()->routeIs('realisasi.create')">
                         {{ __('Input Realisasi') }}
                     </x-nav-link>
                 </div>
+                @endhasanyrole
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
                     <x-nav-link :href="route('laporan.index')" :active="request()->routeIs('laporan.index')">
                         {{ __('Laporan') }}
@@ -31,20 +33,20 @@
                         {{ __('Program & Kegiatan') }}
                     </x-nav-link>
                 </div>
+                @hasanyrole('Admin|Pimpinan')
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    @role('Admin')
                     <x-nav-link :href="route('realisasi.approval.queue')" :active="request()->routeIs('realisasi.approval.queue')">
                         {{ __('Persetujuan (Approval)') }}
                     </x-nav-link>
-                    @endrole
                 </div>
+                @endhasanyrole
+                @role('Admin')
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    @role('Admin')
                     <x-nav-link :href="route('log.index')" :active="request()->routeIs('log.index')">
                         {{ __('Log Aktivitas') }}
                     </x-nav-link>
-                    @endrole
                 </div>
+                @endrole
             </div>
 
             <!-- Settings Dropdown -->

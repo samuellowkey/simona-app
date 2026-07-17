@@ -83,7 +83,8 @@ class KegiatanController extends Controller
 
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->withErrors(['error' => 'Gagal menambahkan data: ' . $e->getMessage()]);
+            \Illuminate\Support\Facades\Log::error('Gagal tambah kegiatan manual: ' . $e->getMessage(), ['user_id' => auth()->id()]);
+            return redirect()->back()->withErrors(['error' => 'Gagal menambahkan data. Silakan hubungi Administrator.']);
         }
     }
 
@@ -91,7 +92,7 @@ class KegiatanController extends Controller
     public function importExcel(Request $request)
     {
         $request->validate([
-            'file_excel' => 'required|mimes:csv,txt'
+            'file_excel' => 'required|file|mimes:csv,txt|max:4096'
         ]);
 
         $file = $request->file('file_excel');
@@ -100,25 +101,70 @@ class KegiatanController extends Controller
         // Lewati baris pertama (header kolom Excel)
         fgetcsv($handle, 1000, ',');
 
-        // Looping baca baris data excel
-        while (($data = fgetcsv($handle, 1000, ',')) !== FALSE) {
-            // Skema kolom di CSV: [0]kode_program, [1]kode_kegiatan, [2]nama_kegiatan, [3]pagu, [4]target
-            $program = DB::table('programs')->where('kode_program', $data[0])->first();
+        DB::beginTransaction();
+        try {
+            $importedCount = 0;
+            // Looping baca baris data excel
+            while (($data = fgetcsv($handle, 1000, ',')) !== FALSE) {
+                // Pastikan jumlah kolom minimal 5
+                if (count($data) < 5) {
+                    continue;
+                }
 
-            if ($program) {
-                DB::table('kegiatan')->insert([
-                    'program_id' => $program->id,
-                    'kode_kegiatan' => $data[1],
-                    'nama_kegiatan' => $data[2],
-                    'pagu_anggaran' => $data[3],
-                    'target_serapan_persen' => $data[4],
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                // Skema kolom di CSV: [0]kode_program, [1]kode_kegiatan, [2]nama_kegiatan, [3]pagu, [4]target
+                $kodeProgram = trim($data[0]);
+                $kodeKegiatan = trim($data[1]);
+                $namaKegiatan = trim($data[2]);
+                $paguAnggaran = filter_var($data[3], FILTER_VALIDATE_INT);
+                $targetSerapan = filter_var($data[4], FILTER_VALIDATE_FLOAT);
+
+                // Skip jika data wajib kosong atau format angka salah
+                if (empty($kodeProgram) || empty($kodeKegiatan) || empty($namaKegiatan) || $paguAnggaran === false || $targetSerapan === false) {
+                    continue;
+                }
+
+                $program = DB::table('programs')->where('kode_program', $kodeProgram)->first();
+
+                if ($program) {
+                    DB::table('kegiatan')->insert([
+                        'program_id' => $program->id,
+                        'kode_kegiatan' => $kodeKegiatan,
+                        'nama_kegiatan' => $namaKegiatan,
+                        'pagu_anggaran' => $paguAnggaran,
+                        'target_serapan_persen' => min(100, max(0, $targetSerapan)),
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                    $importedCount++;
+                }
             }
-        }
 
-        fclose($handle);
-        return redirect()->back()->with('success', 'Data Excel Pagu Anggaran berhasil di-import!');
+            fclose($handle);
+
+            if ($importedCount === 0) {
+                DB::rollback();
+                return redirect()->back()->withErrors(['error' => 'Tidak ada data valid yang berhasil di-import. Pastikan kode program terdaftar.']);
+            }
+
+            // Catat log aktivitas
+            DB::table('audit_logs')->insert([
+                'user_id' => auth()->id(),
+                'aktivitas' => 'IMPORT_PAGU_CSV',
+                'deskripsi' => 'User berhasil meng-import ' . $importedCount . ' data Pagu Kegiatan via CSV',
+                'ip_address' => $request->ip(),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Berhasil meng-import ' . $importedCount . ' data Pagu Anggaran!');
+        } catch (\Exception $e) {
+            DB::rollback();
+            if (is_resource($handle)) {
+                fclose($handle);
+            }
+            \Illuminate\Support\Facades\Log::error('Gagal import CSV pagu: ' . $e->getMessage(), ['user_id' => auth()->id()]);
+            return redirect()->back()->withErrors(['error' => 'Gagal memproses file. Pastikan format CSV sesuai ketentuan.']);
+        }
     }
 }

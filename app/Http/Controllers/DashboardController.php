@@ -9,6 +9,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
+        // Gunakan tahun anggaran dari config agar tidak hardcoded
+        $tahun_sekarang = (int) config('app.tahun_anggaran', date('Y'));
+
         // 1. Metrik Utama (Pagu, Realisasi, Sisa)
         $total_pagu = DB::table('kegiatan')->sum('pagu_anggaran');
         $total_realisasi = DB::table('realisasi')
@@ -18,60 +21,68 @@ class DashboardController extends Controller
         $persentase = $total_pagu > 0 ? round(($total_realisasi / $total_pagu) * 100, 1) : 0;
 
         $metrics = [
-            'total_pagu' => $total_pagu,
-            'total_realisasi' => $total_realisasi,
-            'sisa_anggaran' => $sisa_anggaran,
-            'persentase' => $persentase
+            'total_pagu'       => $total_pagu,
+            'total_realisasi'  => $total_realisasi,
+            'sisa_anggaran'    => $sisa_anggaran,
+            'persentase'       => $persentase,
         ];
 
-        // 2. QUERY DATA GRAFIK BULANAN (KUMULATIF)
-        $tahun_sekarang = 2026; // Sesuai tahun anggaran SIMONA
+        // 2. DATA GRAFIK BULANAN (KUMULATIF) — 1 query, bukan 12
+        // Ambil total realisasi per bulan sekaligus
+        $realisasiPerBulan = DB::table('realisasi')
+            ->selectRaw('EXTRACT(MONTH FROM tanggal_realisasi)::integer AS bulan, SUM(nominal_realisasi) AS total')
+            ->whereYear('tanggal_realisasi', $tahun_sekarang)
+            ->where('status', 'approved')
+            ->groupByRaw('EXTRACT(MONTH FROM tanggal_realisasi)::integer')
+            ->pluck('total', 'bulan');
+
+        // Bangun array kumulatif 12 bulan dari hasil query tunggal
         $chart_data = [];
         $kumulatif = 0;
-
-        // Loop dari bulan 1 (Jan) sampai 12 (Des)
         for ($bulan = 1; $bulan <= 12; $bulan++) {
-            // Hitung total realisasi pada bulan tersebut
-            $total_bulan_ini = DB::table('realisasi')
-                ->whereYear('tanggal_realisasi', $tahun_sekarang)
-                ->whereMonth('tanggal_realisasi', $bulan)
-                ->where('status', 'approved')
-                ->sum('nominal_realisasi');
-
-            // Karena grafiknya KUMULATIF, kita tambahkan terus ke bulan berikutnya
-            $kumulatif += $total_bulan_ini;
-            
-            // Konversi ke satuan "Juta" agar skala grafik di chartjs lebih rapi dan enak dilihat
-            $chart_data[] = round($kumulatif / 1000000, 2); 
+            $kumulatif += ($realisasiPerBulan[$bulan] ?? 0);
+            $chart_data[] = round($kumulatif / 1000000, 2);
         }
 
-        // 3. LOGIKA EWS (Sama seperti sebelumnya)
+        // 3. LOGIKA EWS — 1 query untuk semua kegiatan + 1 query untuk semua realisasi (bukan N+1)
         $kegiatan_list = DB::table('kegiatan')->get();
-        $ews_data = [];
 
+        // Ambil total realisasi approved per kegiatan sekaligus — 1 query saja
+        $realisasiPerKegiatan = DB::table('realisasi')
+            ->selectRaw('kegiatan_id, SUM(nominal_realisasi) AS total')
+            ->where('status', 'approved')
+            ->groupBy('kegiatan_id')
+            ->pluck('total', 'kegiatan_id');
+
+        $ews_data = [];
         foreach ($kegiatan_list as $keg) {
-            $realisasi_kegiatan = DB::table('realisasi')
-                ->where('kegiatan_id', $keg->id)
-                ->where('status', 'approved')
-                ->sum('nominal_realisasi');
-            $persen_realisasi = $keg->pagu_anggaran > 0 ? round(($realisasi_kegiatan / $keg->pagu_anggaran) * 100) : 0;
+            $realisasi_kegiatan = $realisasiPerKegiatan[$keg->id] ?? 0;
+            $persen_realisasi = $keg->pagu_anggaran > 0
+                ? round(($realisasi_kegiatan / $keg->pagu_anggaran) * 100)
+                : 0;
             $deviasi = $persen_realisasi - $keg->target_serapan_persen;
 
-            if ($deviasi <= -20) { $status = 'Kritis'; $color = 'red'; }
-            elseif ($deviasi <= -5) { $status = 'Waspada'; $color = 'yellow'; }
-            else { $status = 'Aman'; $color = 'green'; }
+            if ($deviasi <= -20) {
+                $status = 'Kritis';
+                $color = 'red';
+            } elseif ($deviasi <= -5) {
+                $status = 'Waspada';
+                $color = 'yellow';
+            } else {
+                $status = 'Aman';
+                $color = 'green';
+            }
 
             $ews_data[] = [
                 'kegiatan' => $keg->nama_kegiatan,
-                'target' => $keg->target_serapan_persen,
+                'target'   => $keg->target_serapan_persen,
                 'realisasi' => $persen_realisasi,
-                'deviasi' => $deviasi,
-                'status' => $status,
-                'color' => $color
+                'deviasi'  => $deviasi,
+                'status'   => $status,
+                'color'    => $color,
             ];
         }
 
-        // Kirim $chart_data ke view blade
         return view('dashboard', compact('metrics', 'ews_data', 'chart_data'));
     }
 }

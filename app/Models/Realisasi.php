@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Realisasi extends Model
 {
@@ -16,6 +17,30 @@ class Realisasi extends Model
         'nominal_realisasi',
         'progres_fisik_persen',
         'user_id',
-        'keterangan'
+        'keterangan',
+        'status',
+        'bukti_nota',
+        'catatan_reject',
     ];
+
+    protected $casts = [
+        'tanggal_realisasi' => 'date',
+        'nominal_realisasi' => 'integer',
+    ];
+
+    /**
+     * Kegiatan yang berhubungan dengan realisasi ini.
+     */
+    public function kegiatan(): BelongsTo
+    {
+        return $this->belongsTo(Kegiatan::class);
+    }
+
+    /**
+     * User yang menginput realisasi ini.
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }

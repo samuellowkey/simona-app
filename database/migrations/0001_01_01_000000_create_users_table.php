@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->string('name')->nullable();  // Ditambahkan kembali untuk kompatibilitas Breeze/Tests
             $table->string('username')->unique(); // Tetap dipertahankan untuk login
             $table->string('nama_lengkap');      // Tetap dipertahankan
             $table->string('email')->unique();    // WAJIB DITAMBAH agar Laravel Breeze tidak error

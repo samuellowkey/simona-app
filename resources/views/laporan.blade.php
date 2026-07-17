@@ -175,6 +175,13 @@
                 </div>
             </div>
 
+            {{-- Pagination links --}}
+            @if($realisasiData->hasPages())
+            <div class="mt-4 flex justify-center no-print">
+                {{ $realisasiData->links() }}
+            </div>
+            @endif
+
         </div>
 
         <div x-show="openModal" 

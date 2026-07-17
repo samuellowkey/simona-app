@@ -48,13 +48,14 @@ class RoleAndPermissionSeeder extends Seeder
             $admin->assignRole($roleAdmin);
         }
 
-        // Akun Contoh Operator (Bisa dihapus/dipertahankan buat testing)
+        // Akun Contoh Operator (Ganti password sebelum deploy ke production!)
+        // Password default bisa diatur via environment: OPERATOR_DEFAULT_PASSWORD
         $operator = User::firstOrCreate(
             ['email' => 'operator@simona.go.id'],
             [
-                'username' => 'operator',
+                'username'     => 'operator',
                 'nama_lengkap' => 'Staf Keuangan Operator',
-                'password' => Hash::make('password123'),
+                'password'     => Hash::make(env('OPERATOR_DEFAULT_PASSWORD', 'SimonaOpr2026!@#')),
             ]
         );
         if (!$operator->hasRole('Operator')) {

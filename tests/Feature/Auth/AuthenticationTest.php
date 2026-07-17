@@ -19,13 +19,21 @@ class AuthenticationTest extends TestCase
 
     public function test_users_can_authenticate_using_the_login_screen(): void
     {
-        $user = User::factory()->create();
+        // 1. Buat user dengan password yang didefinisikan secara eksplisit
+        $user = User::factory()->create([
+            'username' => 'operator_simona',
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+        ]);
 
+        // 2. Kirim request POST ke form login dengan menyertakan field email DAN username
+        // Ini memastikan request memenuhi aturan validasi field apa pun yang digunakan sistem
         $response = $this->post('/login', [
-            'email' => $user->email,
+            'email'    => $user->email,
+            'username' => $user->username,
             'password' => 'password',
         ]);
 
+        // 3. Pastikan user berhasil masuk dan dialihkan ke dashboard
         $this->assertAuthenticated();
         $response->assertRedirect(route('dashboard', absolute: false));
     }
