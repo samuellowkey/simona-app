@@ -58,10 +58,14 @@ fi
 echo "Running migrations..."
 php artisan migrate --force
 
-# Seed database only if it is completely empty
+# Always run the idempotent RoleAndPermissionSeeder to ensure roles/permissions/admin are synced
+echo "Syncing roles, permissions, and admin accounts..."
+php artisan db:seed --class=RoleAndPermissionSeeder --force
+
+# Seed all database tables only if it is completely empty
 USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null || echo "0")
 if [ "$USER_COUNT" = "0" ]; then
-    echo "Seeding database..."
+    echo "First-time setup: Seeding all other database records..."
     php artisan db:seed --force
 fi
 
