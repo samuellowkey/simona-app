@@ -6,20 +6,27 @@ services:
     image: simona-app
     container_name: simona_app
     restart: unless-stopped
+    ports:
+      - "8000:80"
     environment:
-      SERVICE_NAME: app
-      SERVICE_TAGS: dev
+      APP_ENV: local
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-simona_db}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD}
     working_dir: /var/www
     volumes:
       - ./:/var/www
       - ./docker-compose/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+      - ./docker-compose/nginx/app.conf:/etc/nginx/http.d/default.conf
     networks:
       - simona_network
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "php-fpm -t || exit 1"]
+      test: ["CMD-SHELL", "nginx -t && php-fpm -t || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -29,40 +36,20 @@ services:
           memory: 512M
           cpus: '0.5'
 
-  webserver:
-    image: nginx:alpine
-    container_name: simona_webserver
-    restart: unless-stopped
-    ports:
-      - "8000:80"
-    volumes:
-      - ./:/var/www
-      - ./docker-compose/nginx:/etc/nginx/conf.d/
-    networks:
-      - simona_network
-    depends_on:
-      app:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: '0.25'
-
   db:
     image: postgres:15-alpine
     container_name: simona_db
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${DB_DATABASE}
-      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_DATABASE:-simona_db}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - simonadbdata:/var/lib/postgresql/data
     networks:
       - simona_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-simona_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,4 +66,4 @@ networks:
 
 volumes:
   simonadbdata:
-    driver: local 
+    driver: local
