@@ -9,7 +9,6 @@ yarn-error.log
 .phpunit.result.cache
 phpunit.xml
 tests
-docker-compose
 docker-compose.yml
 Dockerfile
 README.md
