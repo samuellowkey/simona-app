@@ -28,45 +28,48 @@ else
     php artisan view:clear
 fi
 
-# Wait for database connection before running migrations
-if [ -n "$DB_HOST" ]; then
-    echo "Waiting for database connection ($DB_HOST:$DB_PORT)..."
-    for i in $(seq 1 30); do
-        if php -r "
-            try {
-                \$host = getenv('DB_HOST') ?: '127.0.0.1';
-                \$port = getenv('DB_PORT') ?: '5432';
-                \$db   = getenv('DB_DATABASE') ?: 'forge';
-                \$user = getenv('DB_USERNAME') ?: 'forge';
-                \$pass = getenv('DB_PASSWORD') ?: '';
-                new PDO(\"pgsql:host=\$host;port=\$port;dbname=\$db\", \$user, \$pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
-                exit(0);
-            } catch (Exception \$e) {
-                fwrite(STDERR, \$e->getMessage() . \"\n\");
-                exit(1);
-            }
-        " >/dev/null 2>&1; then
-            echo "Database is ready!"
-            break
-        fi
-        echo "Database not ready yet (attempt $i/30)..."
-        sleep 2
-    done
-fi
+# Wait for database, run migrations, and seed only in non-production environments
+if [ "${APP_ENV:-production}" != "production" ]; then
+    # Wait for database connection before running migrations
+    if [ -n "$DB_HOST" ]; then
+        echo "Waiting for database connection ($DB_HOST:$DB_PORT)..."
+        for i in $(seq 1 30); do
+            if php -r "
+                try {
+                    \$host = getenv('DB_HOST') ?: '127.0.0.1';
+                    \$port = getenv('DB_PORT') ?: '5432';
+                    \$db   = getenv('DB_DATABASE') ?: 'forge';
+                    \$user = getenv('DB_USERNAME') ?: 'forge';
+                    \$pass = getenv('DB_PASSWORD') ?: '';
+                    new PDO(\"pgsql:host=\$host;port=\$port;dbname=\$db\", \$user, \$pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+                    exit(0);
+                } catch (Exception \$e) {
+                    fwrite(STDERR, \$e->getMessage() . \"\n\");
+                    exit(1);
+                }
+            " >/dev/null 2>&1; then
+                echo "Database is ready!"
+                break
+            fi
+            echo "Database not ready yet (attempt $i/30)..."
+            sleep 2
+        done
+    fi
 
-# Run migrations
-echo "Running migrations..."
-php artisan migrate --force
+    # Run migrations
+    echo "Running migrations..."
+    php artisan migrate --force
 
-# Always run the idempotent RoleAndPermissionSeeder to ensure roles/permissions/admin are synced
-echo "Syncing roles, permissions, and admin accounts..."
-php artisan db:seed --class=RoleAndPermissionSeeder --force
+    # Always run the idempotent RoleAndPermissionSeeder to ensure roles/permissions/admin are synced
+    echo "Syncing roles, permissions, and admin accounts..."
+    php artisan db:seed --class=RoleAndPermissionSeeder --force
 
-# Seed all database tables only if it is completely empty
-USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null || echo "0")
-if [ "$USER_COUNT" = "0" ]; then
-    echo "First-time setup: Seeding all other database records..."
-    php artisan db:seed --force
+    # Seed all database tables only if it is completely empty
+    USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null || echo "0")
+    if [ "$USER_COUNT" = "0" ]; then
+        echo "First-time setup: Seeding all other database records..."
+        php artisan db:seed --force
+    fi
 fi
 
 echo "--- Entrypoint done ---"
