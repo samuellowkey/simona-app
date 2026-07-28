@@ -6,10 +6,11 @@ echo "--- Running entrypoint ---"
 # Dynamic port binding for Railway or similar platforms
 if [ -n "$PORT" ]; then
     echo "Configuring Nginx to listen on port $PORT..."
-    sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/http.d/default.conf
+    sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/http.d/app.conf
+    sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/http.d/app.conf
 fi
 
-# Build assets dynamically in development if node is present
+# Build assets dynamically in development   if node is present
 if [ "${APP_ENV:-production}" = "local" ] && [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
     echo "Building frontend assets for development..."
     npm run build
