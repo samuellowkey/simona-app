@@ -33,6 +33,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Input data Program & Kegiatan
         Route::post('/program-kegiatan/manual', [KegiatanController::class, 'storeManual'])->name('kegiatan.storeManual');
         Route::post('/program-kegiatan/import', [KegiatanController::class, 'importExcel'])->name('kegiatan.importExcel');
+        
+        // Edit & Hapus Pagu Kegiatan
+        Route::put('/kegiatan/{id}', [KegiatanController::class, 'update'])->name('kegiatan.update');
+        Route::delete('/kegiatan/{id}', [KegiatanController::class, 'destroy'])->name('kegiatan.destroy');
     });
 
     // 5. Approval Realisasi — HANYA Admin & Pimpinan (bukan Operator)

@@ -7,7 +7,13 @@
     </x-slot>
 
     <div class="py-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div x-data="{ modalManual: false, modalExcel: false }">
+        <!-- Alpine State untuk Modal Manual, Excel, dan Edit -->
+        <div x-data="{ 
+            modalManual: false, 
+            modalExcel: false, 
+            modalEdit: false,
+            editData: { id: '', program_id: '', kode_kegiatan: '', nama_kegiatan: '', pagu_anggaran: '', target_serapan_persen: '' }
+        }">
             
             @if(session('success'))
                 <div class="mb-4 p-4 bg-emerald-100 border-l-4 border-emerald-500 text-emerald-800 rounded-xl font-medium text-sm">
@@ -33,6 +39,7 @@
                             <th class="p-4">Program / Kegiatan</th>
                             <th class="p-4 text-center">Target Serapan</th>
                             <th class="p-4 text-right">Pagu Anggaran</th>
+                            <th class="p-4 text-center">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 text-sm">
@@ -45,10 +52,37 @@
                                 </td>
                                 <td class="p-4 text-center font-bold text-slate-600">{{ $keg->target_serapan_persen }}%</td>
                                 <td class="p-4 text-right font-bold text-slate-900">Rp {{ number_format($keg->pagu_anggaran, 0, ',', '.') }}</td>
+                                <td class="p-4 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <!-- Tombol Edit -->
+                                        <button @click="
+                                            editData = {
+                                                id: '{{ $keg->id }}',
+                                                program_id: '{{ $keg->program_id }}',
+                                                kode_kegiatan: '{{ $keg->kode_kegiatan }}',
+                                                nama_kegiatan: '{{ addslashes($keg->nama_kegiatan) }}',
+                                                pagu_anggaran: '{{ $keg->pagu_anggaran }}',
+                                                target_serapan_persen: '{{ $keg->target_serapan_persen }}'
+                                            };
+                                            modalEdit = true;
+                                        " class="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition" title="Edit Pagu">
+                                            <i class="fa-solid fa-pen-to-square"></i>
+                                        </button>
+
+                                        <!-- Tombol Delete -->
+                                        <form action="{{ route('kegiatan.destroy', $keg->id) }}" method="POST" onsubmit="return confirm('Apakah Anda yakin ingin menghapus pagu kegiatan ini?');" class="inline">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Hapus Pagu">
+                                                <i class="fa-solid fa-trash-can"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="p-12 text-center text-slate-400">
+                                <td colspan="5" class="p-12 text-center text-slate-400">
                                     <div class="flex flex-col items-center justify-center gap-3">
                                         <i class="fa-solid fa-folder-open text-5xl text-slate-300"></i>
                                         <div>
@@ -63,7 +97,7 @@
                 </table>
             </div>
 
-            <!-- Modal Manual -->
+            <!-- Modal Manual (Tambah) -->
             <div x-show="modalManual" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-transition style="display: none;">
                 <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6" @click.away="modalManual = false">
                     <div class="flex justify-between items-center mb-4">
@@ -136,8 +170,60 @@
                 </div>
             </div>
 
+            <!-- Modal Edit Pagu -->
+            <div x-show="modalEdit" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-transition style="display: none;">
+                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-lg p-6" @click.away="modalEdit = false">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-900">Edit Pagu Anggaran</h3>
+                        <button @click="modalEdit = false" class="text-slate-400 hover:text-slate-600">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+                    
+                    <form :action="'/kegiatan/' + editData.id" method="POST" class="space-y-4">
+                        @csrf
+                        @method('PUT')
+                        
+                        <div>
+                            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Program Induk</label>
+                            <select name="program_id" x-model="editData.program_id" class="w-full rounded-xl border-slate-200 text-sm focus:border-blue-500 focus:ring-blue-500" required>
+                                @foreach($programList as $prog)
+                                    <option value="{{ $prog->id }}">{{ $prog->kode_program }} - {{ $prog->nama_program }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="col-span-1">
+                                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Kode Kegiatan</label>
+                                <input type="text" name="kode_kegiatan" x-model="editData.kode_kegiatan" class="w-full rounded-xl border-slate-200 text-sm" required>
+                            </div>
+                            <div class="col-span-2">
+                                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nama Kegiatan</label>
+                                <input type="text" name="nama_kegiatan" x-model="editData.nama_kegiatan" class="w-full rounded-xl border-slate-200 text-sm" required>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nominal Pagu (Rp)</label>
+                                <input type="number" name="pagu_anggaran" x-model="editData.pagu_anggaran" class="w-full rounded-xl border-slate-200 text-sm" required>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Target Serapan (%)</label>
+                                <input type="number" name="target_serapan_persen" x-model="editData.target_serapan_persen" class="w-full rounded-xl border-slate-200 text-sm" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-sm transition mt-2 cursor-pointer">
+                            Update Pagu Anggaran
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <!-- Modal Excel -->
-            <div x-show="modalExcel" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-transition>
+            <div x-show="modalExcel" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-transition style="display: none;">
                 <div class="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md p-6" @click.away="modalExcel = false">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-bold text-slate-900">Import Anggaran via Excel (CSV)</h3>
@@ -184,7 +270,6 @@
                 newNama.required = false;
                 newTahun.required = false;
                 
-                // Kosongkan kembali nilainya jika di-cancel
                 newKode.value = '';
                 newNama.value = '';
             }

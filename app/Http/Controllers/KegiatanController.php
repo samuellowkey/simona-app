@@ -88,6 +88,30 @@ class KegiatanController extends Controller
         }
     }
 
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'program_id' => 'required',
+            'kode_kegiatan' => 'required',
+            'nama_kegiatan' => 'required',
+            'pagu_anggaran' => 'required|numeric',
+            'target_serapan_persen' => 'required|numeric',
+        ]);
+
+        $kegiatan = Kegiatan::findOrFail($id);
+        $kegiatan->update($request->all());
+
+        return redirect()->back()->with('success', 'Pagu kegiatan berhasil diperbarui!');
+    }
+
+    public function destroy($id)
+    {
+        $kegiatan = Kegiatan::findOrFail($id);
+        $kegiatan->delete();
+
+        return redirect()->back()->with('success', 'Pagu kegiatan berhasil dihapus!');
+    }
+
     // 📤 PROSES IMPORT FILE (Format CSV)
     public function importExcel(Request $request)
     {
