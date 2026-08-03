@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // 6. Log Sistem — Hanya Admin
     Route::middleware(['role:Admin'])->group(function () {
         Route::get('/log-sistem', [LaporanController::class, 'indexLog'])->name('log.index');
+        Route::delete('/program-kegiatan/{id}', [KegiatanController::class, 'destroy'])->name('kegiatan.destroy');
+    Route::delete('/program-induk/{id}', [KegiatanController::class, 'destroyProgram'])->name('program.destroy');
     });
 
     // 7. Profile Management — semua user yang login

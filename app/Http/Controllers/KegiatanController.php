@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LogAktivitas;
 use App\Models\Kegiatan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -119,13 +120,91 @@ class KegiatanController extends Controller
 
     public function destroy($id)
     {
-        $deleted = DB::table('kegiatan')->where('id', $id)->delete();
+        // 1. Ambil data kegiatan sebelum dihapus untuk disimpan info audit-nya
+        $kegiatan = DB::table('kegiatan')->where('id', $id)->first();
 
-        if (!$deleted) {
-            return redirect()->back()->withErrors(['error' => 'Data kegiatan gagal dihapus atau tidak ditemukan.']);
+        if (!$kegiatan) {
+            return redirect()->back()->withErrors(['error' => 'Data kegiatan tidak ditemukan.']);
         }
 
-        return redirect()->back()->with('success', 'Pagu kegiatan berhasil dihapus!');
+        DB::beginTransaction();
+        try {
+            // Ambil nama user yang sedang login
+            $userName = auth()->user()->nama_lengkap ?? auth()->user()->name ?? 'User';
+            $paguFormatted = 'Rp ' . number_format($kegiatan->pagu_anggaran, 0, ',', '.');
+
+            // 2. Hapus data kegiatan
+            DB::table('kegiatan')->where('id', $id)->delete();
+
+            // 3. Catat ke Audit Log
+            // Jika menggunakan Model LogAktivitas:
+            if (class_exists(LogAktivitas::class)) {
+                LogAktivitas::catat(
+                    'HAPUS_PAGU',
+                    "menghapus Pagu Kegiatan: {$kegiatan->nama_kegiatan} ({$kegiatan->kode_kegiatan}) sebesar {$paguFormatted}"
+                );
+            } else {
+                // Atau jika menggunakan DB Table langsung (sesuai kodingan storeManual kamu):
+                DB::table('audit_logs')->insert([
+                    'user_id'    => auth()->id(),
+                    'aktivitas'  => 'HAPUS_PAGU',
+                    'deskripsi'  => "User {$userName} menghapus Pagu Kegiatan: {$kegiatan->nama_kegiatan} ({$kegiatan->kode_kegiatan}) sebesar {$paguFormatted}",
+                    'ip_address' => request()->ip() ?? '127.0.0.1',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Pagu kegiatan berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            \Illuminate\Support\Facades\Log::error('Gagal hapus kegiatan: ' . $e->getMessage(), ['user_id' => auth()->id()]);
+            return redirect()->back()->withErrors(['error' => 'Gagal menghapus data kegiatan.']);
+        }
+    }
+
+    public function destroyProgram($id)
+    {
+        $program = DB::table('programs')->where('id', $id)->first();
+
+        if (!$program) {
+            return redirect()->back()->withErrors(['error' => 'Data program tidak ditemukan.']);
+        }
+
+        DB::beginTransaction();
+        try {
+            $userName = auth()->user()->nama_lengkap ?? auth()->user()->name ?? 'User';
+
+            // Hapus Master Program
+            DB::table('programs')->where('id', $id)->delete();
+
+            // Catat Audit Log
+            if (class_exists(LogAktivitas::class)) {
+                LogAktivitas::catat(
+                    'HAPUS_PROGRAM',
+                    "menghapus Master Program Induk: {$program->nama_program} ({$program->kode_program})"
+                );
+            } else {
+                DB::table('audit_logs')->insert([
+                    'user_id'    => auth()->id(),
+                    'aktivitas'  => 'HAPUS_PROGRAM',
+                    'deskripsi'  => "User {$userName} menghapus Master Program Induk: {$program->nama_program} ({$program->kode_program})",
+                    'ip_address' => request()->ip() ?? '127.0.0.1',
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Master Program Induk berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            \Illuminate\Support\Facades\Log::error('Gagal hapus program: ' . $e->getMessage(), ['user_id' => auth()->id()]);
+            return redirect()->back()->withErrors(['error' => 'Gagal menghapus program. Pastikan tidak ada kegiatan yang terikat dengan program ini.']);
+        }
     }
 
     // 📤 PROSES IMPORT FILE (Format CSV)

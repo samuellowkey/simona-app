@@ -21,6 +21,9 @@
                     <label for="aktivitas" class="block text-xs font-bold text-slate-600 uppercase mb-1.5">Pilih Aktivitas</label>
                     <select name="aktivitas" id="aktivitas" class="w-full text-sm border-slate-200 focus:border-blue-500 focus:ring-blue-500 rounded-xl shadow-sm">
                         <option value="">-- Semua Aktivitas --</option>
+                        <option value="TAMBAH_PROGRAM_BARU" {{ request('aktivitas') == 'TAMBAH_PROGRAM_BARU' ? 'selected' : '' }}>TAMBAH PROGRAM BARU</option>
+                        <option value="HAPUS_PROGRAM" {{ request('aktivitas') == 'HAPUS_PROGRAM' ? 'selected' : '' }}>HAPUS PROGRAM</option>
+                        <option value="HAPUS_PAGU" {{ request('aktivitas') == 'HAPUS_PAGU' ? 'selected' : '' }}>HAPUS PAGU / KEGIATAN</option>
                         <option value="MENGHAPUS_REALISASI" {{ request('aktivitas') == 'MENGHAPUS_REALISASI' ? 'selected' : '' }}>MENGHAPUS REALISASI</option>
                         <option value="APPROVAL_REALISASI" {{ request('aktivitas') == 'APPROVAL_REALISASI' ? 'selected' : '' }}>APPROVAL REALISASI</option>
                     </select>
