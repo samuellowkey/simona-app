@@ -10,28 +10,31 @@ if [ -n "$PORT" ]; then
     sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/http.d/app.conf
 fi
 
-# Build assets dynamically in development   if node is present
+# Build assets dynamically in development if node is present
 if [ "${APP_ENV:-production}" = "local" ] && [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
     echo "Building frontend assets for development..."
     npm run build
 fi
 
-# Cache config only for production to avoid local development friction
+# CLEAR ALL CACHE FIRST ON STARTUP (Agar view & route lama terhapus total)
+echo "Clearing stale view and framework cache..."
+php artisan view:clear
+php artisan cache:clear
+
+# Cache config & route only for production
 if [ "${APP_ENV:-production}" = "production" ]; then
-    echo "Caching configuration for production..."
+    echo "Caching configuration and routes for production..."
     php artisan config:cache
     php artisan route:cache
-    php artisan view:cache
+    # php artisan view:cache  <-- KITA MATIKAN INI BIAR VIEW SELALU FRESH!
 else
     echo "Clearing cached configuration for local development..."
     php artisan config:clear
     php artisan route:clear
-    php artisan view:clear
 fi
 
-# Wait for database, run migrations, and seed only in non-production environments
-if [ "${APP_ENV:-production}" != "production" ]; then
-    # Wait for database connection before running migrations
+# Wait for database, run migrations, and seed
+if [ "${APP_ENV:-production}" != "production" ] || [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     if [ -n "$DB_HOST" ]; then
         echo "Waiting for database connection ($DB_HOST:$DB_PORT)..."
         for i in $(seq 1 30); do
@@ -57,20 +60,11 @@ if [ "${APP_ENV:-production}" != "production" ]; then
         done
     fi
 
-    # Run migrations
     echo "Running migrations..."
     php artisan migrate --force
 
-    # Always run the idempotent RoleAndPermissionSeeder to ensure roles/permissions/admin are synced
     echo "Syncing roles, permissions, and admin accounts..."
     php artisan db:seed --class=RoleAndPermissionSeeder --force
-
-    # Seed all database tables only if it is completely empty
-    USER_COUNT=$(php artisan tinker --execute="echo \App\Models\User::count();" 2>/dev/null || echo "0")
-    if [ "$USER_COUNT" = "0" ]; then
-        echo "First-time setup: Seeding all other database records..."
-        php artisan db:seed --force
-    fi
 fi
 
 echo "--- Entrypoint done ---"
