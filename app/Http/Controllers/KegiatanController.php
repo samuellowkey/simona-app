@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Kegiatan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -98,16 +99,31 @@ class KegiatanController extends Controller
             'target_serapan_persen' => 'required|numeric',
         ]);
 
-        $kegiatan = Kegiatan::findOrFail($id);
-        $kegiatan->update($request->all());
+        $affected = DB::table('kegiatan')
+            ->where('id', $id)
+            ->update([
+                'program_id'            => $request->program_id,
+                'kode_kegiatan'         => $request->kode_kegiatan,
+                'nama_kegiatan'         => $request->nama_kegiatan,
+                'pagu_anggaran'         => $request->pagu_anggaran,
+                'target_serapan_persen' => $request->target_serapan_persen,
+                'updated_at'            => now(),
+            ]);
+
+        if (!$affected) {
+            return redirect()->back()->withErrors(['error' => 'Data kegiatan gagal diperbarui atau tidak ditemukan.']);
+        }
 
         return redirect()->back()->with('success', 'Pagu kegiatan berhasil diperbarui!');
     }
 
     public function destroy($id)
     {
-        $kegiatan = Kegiatan::findOrFail($id);
-        $kegiatan->delete();
+        $deleted = DB::table('kegiatan')->where('id', $id)->delete();
+
+        if (!$deleted) {
+            return redirect()->back()->withErrors(['error' => 'Data kegiatan gagal dihapus atau tidak ditemukan.']);
+        }
 
         return redirect()->back()->with('success', 'Pagu kegiatan berhasil dihapus!');
     }
