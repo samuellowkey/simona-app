@@ -170,75 +170,74 @@
                 </div>
             </div>
 
-            <!-- MODAL EDIT PAGU -->
-            <div id="editModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-                <div class="relative w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+            <!-- Modal Edit Pagu -->
+            <div x-show="modalEdit" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" x-transition style="display: none;">
+                
+                <div class="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]" @click.away="modalEdit = false">
                     
-                    <!-- Modal Header -->
-                    <div class="flex items-center justify-between p-6 border-b border-slate-100">
+                    <!-- Header -->
+                    <div class="flex justify-between items-center p-6 border-b border-slate-100">
                         <h3 class="text-lg font-bold text-slate-800">Edit Pagu Anggaran</h3>
-                        <button type="button" onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
+                        <button type="button" @click="modalEdit = false" class="text-slate-400 hover:text-slate-600 transition">
+                            <i class="fa-solid fa-xmark text-lg"></i>
                         </button>
                     </div>
-
-                    <!-- Form Edit -->
-                    <form id="formEditPagu" method="POST" action="" class="flex flex-col overflow-hidden">
+                    
+                    <!-- Form -->
+                    <form :action="'/kegiatan/' + editData.id" method="POST" class="flex flex-col flex-1 overflow-hidden">
                         @csrf
                         @method('PUT')
-
-                        <!-- Modal Body (Bisa di-scroll jika layar kecil) -->
+                        
+                        <!-- Body Form dengan Spacing Pas -->
                         <div class="p-6 overflow-y-auto space-y-4">
                             
-                            <!-- PROGRAM INDUK -->
+                            <!-- Program Induk -->
                             <div>
                                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Program Induk</label>
-                                <select name="program_id" id="edit_program_id" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-medium">
+                                <select name="program_id" x-model="editData.program_id" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500 text-slate-800" required>
                                     @foreach($programList as $prog)
                                         <option value="{{ $prog->id }}">{{ $prog->kode_program }} - {{ $prog->nama_program }}</option>
                                     @endforeach
                                 </select>
                             </div>
 
-                            <!-- KODE & NAMA KEGIATAN -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Kode Kegiatan</label>
-                                    <input type="text" name="kode_kegiatan" id="edit_kode_kegiatan" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700" required />
+                            <!-- Kode & Nama Kegiatan dalam 2 Kolom -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <div class="sm:col-span-1">
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Kode</label>
+                                    <input type="text" name="kode_kegiatan" x-model="editData.kode_kegiatan" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500 text-slate-800" required>
                                 </div>
-                                <div>
+                                <div class="sm:col-span-2">
                                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Nama Kegiatan</label>
-                                    <input type="text" name="nama_kegiatan" id="edit_nama_kegiatan" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700" required />
+                                    <input type="text" name="nama_kegiatan" x-model="editData.nama_kegiatan" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500 text-slate-800" required>
                                 </div>
                             </div>
 
-                            <!-- NOMINAL & TARGET -->
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Nominal & Target dalam 2 Kolom -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Nominal Pagu (RP)</label>
-                                    <input type="number" name="pagu_anggaran" id="edit_pagu_anggaran" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700" required />
+                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Nominal Pagu (Rp)</label>
+                                    <input type="number" name="pagu_anggaran" x-model="editData.pagu_anggaran" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500 text-slate-800" required>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Target Serapan (%)</label>
-                                    <input type="number" step="0.01" name="target_serapan_persen" id="edit_target_serapan_persen" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700" required />
+                                    <input type="number" name="target_serapan_persen" x-model="editData.target_serapan_persen" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-blue-500 focus:ring-blue-500 text-slate-800" required>
                                 </div>
                             </div>
 
                         </div>
 
-                        <!-- Modal Footer (Tombol Update & Batal) -->
-                        <div class="flex items-center justify-end gap-3 p-6 bg-slate-50 border-t border-slate-100">
-                            <button type="button" onclick="closeEditModal()" class="px-5 py-2.5 rounded-xl font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-all">
+                        <!-- Footer Action (Warna Tombol Dijamin Muncul) -->
+                        <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+                            <button type="button" @click="modalEdit = false" class="px-4 py-2.5 rounded-xl font-semibold text-xs text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition">
                                 Batal
                             </button>
-                            <button type="submit" class="px-5 py-2.5 rounded-xl font-semibold text-white bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all">
-                                Simpan Perubahan
+                            <button type="submit" class="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-amber-500 hover:bg-amber-600 transition shadow-sm cursor-pointer" style="background-color: #d97706 !important; color: #ffffff !important;">
+                                Update Pagu Anggaran
                             </button>
                         </div>
-                    </form>
 
+                    </form>
                 </div>
             </div>
 
