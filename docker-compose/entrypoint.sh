@@ -6,8 +6,15 @@ echo "--- Running entrypoint ---"
 # Dynamic port binding for Railway or similar platforms
 if [ -n "$PORT" ]; then
     echo "Configuring Nginx to listen on port $PORT..."
-    sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/http.d/app.conf
-    sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/http.d/app.conf
+    if [ -f /etc/nginx/http.d/app.conf ]; then
+        sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/http.d/app.conf
+        sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/http.d/app.conf
+    elif [ -f /etc/nginx/conf.d/default.conf ]; then
+        sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/conf.d/default.conf
+        sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/conf.d/default.conf
+    else
+        echo "Warning: Nginx configuration file not found, skipping port substitution."
+    fi
 fi
 
 # Build assets dynamically in development if node is present
