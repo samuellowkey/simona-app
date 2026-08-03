@@ -6,14 +6,27 @@ echo "--- Running entrypoint ---"
 # Dynamic port binding for Railway or similar platforms
 if [ -n "$PORT" ]; then
     echo "Configuring Nginx to listen on port $PORT..."
+    
+    # Cari file konfig Nginx di berbagai lokasi umum
+    CONF_FILE=""
     if [ -f /etc/nginx/http.d/app.conf ]; then
-        sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/http.d/app.conf
-        sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/http.d/app.conf
+        CONF_FILE="/etc/nginx/http.d/app.conf"
+    elif [ -f /etc/nginx/http.d/default.conf ]; then
+        CONF_FILE="/etc/nginx/http.d/default.conf"
     elif [ -f /etc/nginx/conf.d/default.conf ]; then
-        sed -i "s/listen 80;/listen ${PORT};/g" /etc/nginx/conf.d/default.conf
-        sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" /etc/nginx/conf.d/default.conf
+        CONF_FILE="/etc/nginx/conf.d/default.conf"
+    elif [ -f /etc/nginx/conf.d/app.conf ]; then
+        CONF_FILE="/etc/nginx/conf.d/app.conf"
+    elif [ -f /etc/nginx/sites-available/default ]; then
+        CONF_FILE="/etc/nginx/sites-available/default"
+    fi
+
+    if [ -n "$CONF_FILE" ]; then
+        echo "Found Nginx config at $CONF_FILE. Replacing port to $PORT..."
+        sed -i "s/listen 80;/listen ${PORT};/g" "$CONF_FILE"
+        sed -i "s/listen \[::\]:80;/listen \[::\]:${PORT};/g" "$CONF_FILE"
     else
-        echo "Warning: Nginx configuration file not found, skipping port substitution."
+        echo "ERROR: Nginx configuration file NOT FOUND in standard paths!"
     fi
 fi
 
