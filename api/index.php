@@ -5,30 +5,27 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
-// 1. Force Storage Path ke /tmp (Tempat temporary Vercel yang BISA di-write)
-$_ENV['APP_STORAGE_PATH'] = '/tmp/storage';
-
 require __DIR__ . '/../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-// 2. Set direktori storage & buat folder yang wajib ada di /tmp
+// Arahkan storage path ke folder /tmp Vercel
 $app->useStoragePath('/tmp/storage');
 
-$directories = [
+// Buat direktori temporary yang dibutuhkan Laravel
+$dirs = [
     '/tmp/storage/framework/views',
     '/tmp/storage/framework/sessions',
     '/tmp/storage/framework/cache',
     '/tmp/storage/logs',
 ];
 
-foreach ($directories as $dir) {
+foreach ($dirs as $dir) {
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
     }
 }
 
-// 3. Eksekusi Request
 $kernel = $app->make(Kernel::class);
 
 $response = $kernel->handle(
