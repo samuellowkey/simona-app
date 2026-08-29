@@ -96,6 +96,56 @@
 
     </div>
 
+    <!-- Rekapitulasi Anggaran Per Program -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-white py-3 border-0">
+            <h5 class="fw-bold text-dark m-0">Ringkasan Penyerapan Anggaran Per Program</h5>
+            <small class="text-muted">Akumulasi pagu dan realisasi dari seluruh kegiatan</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-muted small text-uppercase">
+                        <tr>
+                            <th class="ps-4">Nama Program</th>
+                            <th class="text-end">Total Pagu</th>
+                            <th class="text-end">Realisasi</th>
+                            <th class="text-end">Sisa Anggaran</th>
+                            <th class="text-center">Serapan (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($rekapProgram as $prog)
+                        <tr>
+                            <td class="ps-4 fw-semibold text-dark">
+                                {{ $prog->nama_program }}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                Rp {{ number_format($prog->total_pagu, 0, ',', '.') }}
+                            </td>
+                            <td class="text-end text-success fw-bold text-nowrap">
+                                Rp {{ number_format($prog->total_realisasi, 0, ',', '.') }}
+                            </td>
+                            <td class="text-end text-muted text-nowrap">
+                                Rp {{ number_format($prog->sisa_anggaran, 0, ',', '.') }}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {{ $prog->persentase >= 50 ? 'bg-success' : 'bg-warning text-dark' }} rounded-pill px-3">
+                                    {{ $prog->persentase }}%
+                                </span>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">Belum ada data program.</td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener("DOMContentLoaded", function() {
             const chartElement = document.querySelector('#trendChart');
