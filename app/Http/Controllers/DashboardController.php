@@ -83,31 +83,34 @@ class DashboardController extends Controller
             ];
         }
 
-        // Ambil rekapitulasi pagu & realisasi ter-approved per program
-        $rekapProgram = DB::table('kegiatan')
-            ->select(
-                'nama_program',
-                DB::raw('SUM(pagu_anggaran) as total_pagu'),
-                DB::raw('COALESCE(SUM(r.total_realisasi), 0) as total_realisasi')
-            )
-            ->leftJoinSub(
-                DB::table('realisasi')
-                    ->select('kegiatan_id', DB::raw('SUM(nominal_realisasi) as total_realisasi'))
-                    ->where('status', 'approved') // Hanya hitung realisasi ter-approve
-                    ->groupBy('kegiatan_id'),
-                'r',
-                'kegiatan.id',
-                '=',
-                'r.kegiatan_id'
-            )
-            ->groupBy('nama_program')
+        // Ambil rekapitulasi per program dari tabel 'programs'
+        $rekapProgram = DB::table('programs')
             ->get()
-            ->map(function ($item) {
-                $item->sisa_anggaran = $item->total_pagu - $item->total_realisasi;
-                $item->persentase = $item->total_pagu > 0 
-                    ? round(($item->total_realisasi / $item->total_pagu) * 100, 2) 
-                    : 0;
-                return $item;
+            ->map(function ($program) {
+                // Ambil ID kegiatan milik program ini
+                $kegiatan = DB::table('kegiatan')
+                    ->where('program_id', $program->id);
+
+                $totalPagu = $kegiatan->sum('pagu_anggaran');
+                $kegiatanIds = $kegiatan->pluck('id');
+
+                // Hitung realisasi approved
+                $totalRealisasi = DB::table('realisasi')
+                    ->whereIn('kegiatan_id', $kegiatanIds)
+                    ->where('status', 'approved')
+                    ->sum('nominal_realisasi');
+
+                $sisaAnggaran = $totalPagu - $totalRealisasi;
+                $persentase   = $totalPagu > 0 ? round(($totalRealisasi / $totalPagu) * 100, 2) : 0;
+
+                return (object) [
+                    'kode_program'    => $program->kode_program,
+                    'nama_program'    => $program->nama_program,
+                    'total_pagu'      => $totalPagu,
+                    'total_realisasi' => $totalRealisasi,
+                    'sisa_anggaran'   => $sisaAnggaran,
+                    'persentase'      => $persentase,
+                ];
             });
 
 
