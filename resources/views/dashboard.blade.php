@@ -98,7 +98,7 @@
 
     <!-- Rekapitulasi Anggaran Per Program -->
     <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-header bg-white py-3 border-0">
+        <div class="card-header bg-white py-3 border-bottom">
             <h5 class="fw-bold text-dark m-0">Ringkasan Penyerapan Anggaran Per Program</h5>
             <small class="text-muted">Akumulasi pagu dan realisasi dari seluruh kegiatan</small>
         </div>
@@ -107,37 +107,47 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light text-muted small text-uppercase">
                         <tr>
-                            <th class="ps-4">Nama Program</th>
-                            <th class="text-end">Total Pagu</th>
-                            <th class="text-end">Realisasi</th>
-                            <th class="text-end">Sisa Anggaran</th>
-                            <th class="text-center">Serapan (%)</th>
+                            <th class="ps-4 py-3" style="min-width: 120px;">Kode</th>
+                            <th class="py-3" style="min-width: 300px;">Nama Program</th>
+                            <th class="text-end py-3" style="min-width: 160px;">Total Pagu</th>
+                            <th class="text-end py-3" style="min-width: 160px;">Realisasi</th>
+                            <th class="text-end py-3" style="min-width: 160px;">Sisa Anggaran</th>
+                            <th class="text-center pe-4 py-3" style="min-width: 130px;">Serapan</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($rekapProgram as $prog)
                         <tr>
-                            <td class="ps-4 fw-semibold text-dark">
+                            <td class="ps-4 text-muted small font-monospace">
+                                {{ $prog->kode_program ?? '-' }}
+                            </td>
+                            <td class="fw-semibold text-dark">
                                 {{ $prog->nama_program }}
                             </td>
-                            <td class="text-end text-nowrap">
+                            <td class="text-end text-nowrap fw-medium">
                                 Rp {{ number_format($prog->total_pagu, 0, ',', '.') }}
                             </td>
-                            <td class="text-end text-success fw-bold text-nowrap">
+                            <td class="text-end text-nowrap text-success fw-bold">
                                 Rp {{ number_format($prog->total_realisasi, 0, ',', '.') }}
                             </td>
-                            <td class="text-end text-muted text-nowrap">
+                            <td class="text-end text-nowrap text-secondary">
                                 Rp {{ number_format($prog->sisa_anggaran, 0, ',', '.') }}
                             </td>
-                            <td class="text-center">
-                                <span class="badge {{ $prog->persentase >= 50 ? 'bg-success' : 'bg-warning text-dark' }} rounded-pill px-3">
-                                    {{ $prog->persentase }}%
-                                </span>
+                            <td class="text-center pe-4">
+                                @if($prog->persentase > 0)
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-semibold">
+                                        {{ $prog->persentase }}%
+                                    </span>
+                                @else
+                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-2">
+                                        0%
+                                    </span>
+                                @endif
                             </td>
                         </tr>
                         @empty
                         <tr>
-                            <td colspan="5" class="text-center py-4 text-muted">Belum ada data program.</td>
+                            <td colspan="6" class="text-center py-4 text-muted">Belum ada data program.</td>
                         </tr>
                         @endforelse
                     </tbody>
