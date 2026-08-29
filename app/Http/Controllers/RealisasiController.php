@@ -41,7 +41,6 @@ class RealisasiController extends Controller
      */
     public function store(StoreRealisasiRequest $request)
     {
-
         $kegiatan = DB::table('kegiatan')->where('id', $request->kegiatan_id)->first();
 
         $total_terpakai = DB::table('realisasi')
@@ -63,6 +62,15 @@ class RealisasiController extends Controller
             $pathFile = $request->file('bukti_nota')->store('bukti_nota', 'public');
         }
 
+        // Cek apakah user adalah Admin (Gunakan hasRole() jika Spatie, atau cek kolom role langsung)
+        $isAdmin = auth()->user()->hasRole('Admin'); // atau: auth()->user()->role === 'admin'
+        
+        // Set status & pesan notifikasi otomatis
+        $status = $isAdmin ? 'approved' : 'pending';
+        $pesanSukses = $isAdmin 
+            ? 'Data realisasi berhasil disimpan dan langsung disetujui!' 
+            : 'Data realisasi berhasil disimpan dan menunggu persetujuan!';
+
         DB::beginTransaction();
         try {
             DB::table('realisasi')->insert([
@@ -73,7 +81,7 @@ class RealisasiController extends Controller
                 'keterangan'           => $request->keterangan,
                 'bukti_nota'           => $pathFile,
                 'user_id'              => auth()->id(),
-                'status'               => 'pending',
+                'status'               => $status, // Otomatis 'approved' jika Admin
                 'created_at'           => now(),
                 'updated_at'           => now(),
             ]);
@@ -81,17 +89,16 @@ class RealisasiController extends Controller
             DB::table('audit_logs')->insert([
                 'user_id'    => auth()->id(),
                 'aktivitas'  => 'INPUT_REALISASI',
-                'deskripsi'  => 'User ' . auth()->user()->nama_lengkap . ' menginput realisasi Rp ' . number_format($request->nominal_realisasi, 0, ',', '.') . ' pada kegiatan: ' . $kegiatan->nama_kegiatan,
+                'deskripsi'  => 'User ' . auth()->user()->nama_lengkap . ' menginput realisasi Rp ' . number_format($request->nominal_realisasi, 0, ',', '.') . ' pada kegiatan: ' . $kegiatan->nama_kegiatan . ' (Status: ' . strtoupper($status) . ')',
                 'ip_address' => $request->ip(),
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
 
             DB::commit();
-            return redirect()->route('realisasi.create')->with('success', 'Data realisasi berhasil disimpan dan menunggu persetujuan!');
+            return redirect()->route('realisasi.create')->with('success', $pesanSukses);
         } catch (\Exception $e) {
-            DB::rollback();
-            // LOG error teknis ke file — jangan tampilkan ke user
+                DB::rollback();
             Log::error('Gagal menyimpan realisasi: ' . $e->getMessage(), ['user_id' => auth()->id()]);
             return redirect()->back()->withErrors(['error' => 'Gagal menyimpan data. Silakan hubungi Administrator.']);
         }
