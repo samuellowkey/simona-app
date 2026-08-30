@@ -97,67 +97,159 @@
     </div>
 
     <!-- Rekapitulasi Anggaran Per Program -->
-    <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-header bg-white py-3 border-bottom">
-            <h5 class="fw-bold text-dark m-0">Ringkasan Penyerapan Anggaran Per Program</h5>
-            <small class="text-muted">Akumulasi pagu dan realisasi dari seluruh kegiatan</small>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light text-muted small text-uppercase">
-                        <tr>
-                            <th class="ps-4 py-3" style="min-width: 120px;">Kode</th>
-                            <th class="py-3" style="min-width: 300px;">Nama Program</th>
-                            <th class="text-end py-3" style="min-width: 160px;">Total Pagu</th>
-                            <th class="text-end py-3" style="min-width: 160px;">Realisasi</th>
-                            <th class="text-end py-3" style="min-width: 160px;">Sisa Anggaran</th>
-                            <th class="text-center pe-4 py-3" style="min-width: 130px;">Serapan</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($rekapProgram as $prog)
-                        <tr>
-                            <td class="ps-4 text-muted small font-monospace">
-                                {{ $prog->kode_program ?? '-' }}
-                            </td>
-                            <td class="fw-semibold text-dark">
-                                {{ $prog->nama_program }}
-                            </td>
-                            <td class="text-end text-nowrap fw-medium">
-                                Rp {{ number_format($prog->total_pagu, 0, ',', '.') }}
-                            </td>
-                            <td class="text-end text-nowrap text-success fw-bold">
-                                Rp {{ number_format($prog->total_realisasi, 0, ',', '.') }}
-                            </td>
-                            <td class="text-end text-nowrap text-secondary">
-                                Rp {{ number_format($prog->sisa_anggaran, 0, ',', '.') }}
-                            </td>
-                            <td class="text-center pe-4">
-                                @if($prog->persentase > 0)
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3 py-2 fw-semibold">
-                                        {{ $prog->persentase }}%
-                                    </span>
-                                @else
-                                    <span class="badge bg-light text-muted border rounded-pill px-3 py-2">
-                                        0%
-                                    </span>
-                                @endif
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">Belum ada data program.</td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6">
+        <!-- Header Card + Quick Filter UI -->
+        <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h3 class="text-lg font-bold text-slate-800">Ringkasan Penyerapan Anggaran Per Program</h3>
+                <p class="text-xs text-slate-400 font-medium mt-0.5">Akumulasi pagu dan realisasi dari seluruh kegiatan</p>
             </div>
+            
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <!-- Mini Search UI -->
+                <div class="relative w-full md:w-64">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+                    <input type="text" id="searchProgram" placeholder="Cari program..." 
+                        class="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-slate-700 placeholder-slate-400">
+                </div>
+                
+                <span class="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200 whitespace-nowrap shrink-0">
+                    TA 2026
+                </span>
+            </div>
+        </div>
+
+        <!-- Table Container -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse" id="programTable">
+                <thead>
+                    <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                        <th class="py-3.5 px-6 w-28">Kode</th>
+                        <th class="py-3.5 px-4 min-w-[260px]">Nama Program</th>
+                        <th class="py-3.5 px-4 text-right w-44">Total Pagu</th>
+                        <th class="py-3.5 px-4 text-right w-44">Realisasi</th>
+                        <th class="py-3.5 px-4 text-right w-44">Sisa Anggaran</th>
+                        <th class="py-3.5 pr-6 pl-4 text-center w-48">Serapan (%)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-sm">
+                    @forelse($rekapProgram as $prog)
+                        @php
+                            $persen = $prog->persentase ?? 0;
+                            // Indikator Warna Serapan
+                            if ($persen >= 80) {
+                                $barColor = 'bg-emerald-500';
+                                $badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                            } elseif ($persen >= 50) {
+                                $barColor = 'bg-amber-500';
+                                $badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
+                            } else {
+                                $barColor = 'bg-rose-500';
+                                $badgeColor = 'bg-rose-50 text-rose-700 border-rose-200';
+                            }
+                        @endphp
+                    <tr class="hover:bg-slate-50/60 transition-colors">
+                        <td class="py-4 px-6">
+                            <span class="inline-block font-mono text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+                                {{ $prog->kode_program ?? '-' }}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 font-semibold text-slate-800">
+                            {{ $prog->nama_program }}
+                        </td>
+                        <td class="py-4 px-4 text-right whitespace-nowrap font-semibold text-slate-800">
+                            Rp {{ number_format($prog->total_pagu, 0, ',', '.') }}
+                        </td>
+                        <td class="py-4 px-4 text-right whitespace-nowrap font-bold text-emerald-600">
+                            Rp {{ number_format($prog->total_realisasi, 0, ',', '.') }}
+                        </td>
+                        <td class="py-4 px-4 text-right whitespace-nowrap font-medium text-slate-500">
+                            Rp {{ number_format($prog->sisa_anggaran, 0, ',', '.') }}
+                        </td>
+                        <td class="py-4 pr-6 pl-4 text-center">
+                            <div class="flex flex-col items-center gap-1.5">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border {{ $badgeColor }}">
+                                    {{ $persen }}%
+                                </span>
+                                <!-- Progress Bar Visual -->
+                                <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                    <div class="{{ $barColor }} h-1.5 rounded-full transition-all duration-500" style="width: {{ min($persen, 100) }}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="py-8 text-center text-slate-400 text-sm italic">
+                            Belum ada data program yang terdaftar.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+                
+                <!-- Footer Total Keseluruhan -->
+                @if(count($rekapProgram) > 0)
+                <tfoot class="bg-slate-50 border-t-2 border-slate-200 font-bold text-slate-800 text-xs">
+                    <tr>
+                        <td colspan="2" class="py-4 px-6 uppercase tracking-wider text-slate-600">Total Keseluruhan</td>
+                        <td class="py-4 px-4 text-right whitespace-nowrap">
+                            Rp {{ number_format($rekapProgram->sum('total_pagu'), 0, ',', '.') }}
+                        </td>
+                        <td class="py-4 px-4 text-right whitespace-nowrap text-emerald-600">
+                            Rp {{ number_format($rekapProgram->sum('total_realisasi'), 0, ',', '.') }}
+                        </td>
+                        <td class="py-4 px-4 text-right whitespace-nowrap text-slate-600">
+                            Rp {{ number_format($rekapProgram->sum('sisa_anggaran'), 0, ',', '.') }}
+                        </td>
+                        <td class="py-4 pr-6 pl-4 text-center">
+                            @php
+                                $totalPaguSum = $rekapProgram->sum('total_pagu');
+                                $totalRealSum = $rekapProgram->sum('total_realisasi');
+                                $avgPersen = $totalPaguSum > 0 ? round(($totalRealSum / $totalPaguSum) * 100, 2) : 0;
+                            @endphp
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold bg-blue-600 text-white">
+                                Rata-rata: {{ $avgPersen }}%
+                            </span>
+                        </td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
         </div>
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Search Filter for Program Table
+            const searchInput = document.getElementById('searchProgram');
+            const table = document.getElementById('programTable');
+            
+            if (searchInput && table) {
+                const tbody = table.querySelector('tbody');
+                const rows = tbody.querySelectorAll('tr');
+                
+                searchInput.addEventListener('input', function(e) {
+                    const searchTerm = e.target.value.toLowerCase();
+                    
+                    rows.forEach(row => {
+                        // Abaikan baris pesan "data kosong" (yang memiliki colspan)
+                        if (row.cells.length === 1) return;
+
+                        const text = row.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+        
+            // Initialize Chart
             const chartElement = document.querySelector('#trendChart');
             if (chartElement) {
                 const chartData = {!! json_encode($chart_data ?? [0,0,0,0,0,0,0,0,0,0,0,0]) !!};
